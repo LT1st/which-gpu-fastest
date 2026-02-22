@@ -1,0 +1,27 @@
+benchmark:
+  iterations: 100
+  warmup: 10
+  precision: fp32
+  device: auto  # auto, cpu, cuda
+
+models:
+  - resnet50
+  - bert-base
+
+batch_sizes:
+  - 1
+  - 8
+  - 32
+
+output:
+  path: ./benchmark_report.json
+  format: json
+  verbose: false
+
+monitoring:
+  enabled: true
+  interval_ms: 100
+
+gpu:
+  ids: [0]
+  multi_gpu: false
