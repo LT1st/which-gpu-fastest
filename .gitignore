@@ -73,6 +73,7 @@ Thumbs.db
 *.csv
 *.html
 !configs/*.yaml
+!docs/index.html
 benchmark_report.*
 test_report.*
 
