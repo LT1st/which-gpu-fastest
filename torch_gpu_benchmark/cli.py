@@ -78,7 +78,7 @@ def main():
 @click.option(
     "--device",
     default="auto",
-    help="Device to use (auto, cpu, cuda, cuda:0, etc.). Default: auto",
+    help="Device: auto, cpu, cuda, cuda:0, mps (Apple Silicon). Default: auto",
 )
 @click.option(
     "-v", "--verbose",
@@ -327,6 +327,33 @@ def list_models_cmd(model_type: Optional[str]):
     click.echo(f"\nTotal: {len(models)} models")
 
 
+@main.command("list-devices")
+def list_devices_cmd():
+    """List available compute devices"""
+    device_info = DeviceInfo.collect()
+    devices = device_info.get_available_devices()
+
+    click.echo("\nAvailable Devices:")
+    click.echo("=" * 60)
+
+    for i, device in enumerate(devices):
+        if device == "cpu":
+            click.echo(f"  [{i}] cpu - CPU")
+        elif device.startswith("cuda"):
+            idx = device.split(":")[1] if ":" in device else "0"
+            gpu_name = "Unknown"
+            for gpu in device_info.gpu_info:
+                if gpu.gpu_id == int(idx):
+                    gpu_name = gpu.gpu_name
+                    break
+            click.echo(f"  [{i}] {device} - {gpu_name}")
+        elif device == "mps":
+            click.echo(f"  [{i}] mps - Apple Silicon GPU")
+
+    click.echo(f"\nPrimary: {device_info.get_device_string()}")
+    click.echo(f"Device Type: {device_info.get_device_type()}")
+
+
 @main.command()
 @click.option(
     "--json",
@@ -342,32 +369,58 @@ def info(json_output: bool):
         import json
         click.echo(json.dumps(device_info.to_dict(), indent=2))
     else:
-        click.echo("\nDevice Information:")
+        click.echo("\n" + "=" * 60)
+        click.echo("Device Information")
         click.echo("=" * 60)
-        click.echo(f"Hostname: {device_info.hostname}")
-        click.echo(f"Platform: {device_info.platform}")
-        click.echo(f"Python: {device_info.python_version}")
-        click.echo(f"PyTorch: {device_info.pytorch_version}")
 
+        # System info
+        click.echo(f"\nSystem:")
+        click.echo(f"  Hostname: {device_info.hostname}")
+        click.echo(f"  Platform: {device_info.platform}")
+        click.echo(f"  Python: {device_info.python_version}")
+        click.echo(f"  PyTorch: {device_info.pytorch_version}")
+
+        # Framework versions
+        click.echo(f"\nFramework Versions:")
         if device_info.cuda_version:
-            click.echo(f"CUDA: {device_info.cuda_version}")
+            click.echo(f"  CUDA: {device_info.cuda_version}")
+        if device_info.rocm_version:
+            click.echo(f"  ROCm: {device_info.rocm_version}")
+        if device_info.mps_available:
+            click.echo(f"  MPS: Available (Apple Silicon)")
 
+        # CPU info
         if device_info.cpu_info:
-            click.echo("\nCPU:")
+            click.echo(f"\nCPU:")
             click.echo(f"  Name: {device_info.cpu_info.cpu_name}")
             click.echo(f"  Cores: {device_info.cpu_info.cpu_cores}")
             click.echo(f"  Threads: {device_info.cpu_info.cpu_threads}")
-            click.echo(f"  Frequency: {device_info.cpu_info.cpu_freq_mhz} MHz")
-            click.echo(f"  Memory: {device_info.cpu_info.memory_total_gb} GB")
+            click.echo(f"  Frequency: {device_info.cpu_info.cpu_freq_mhz:.0f} MHz")
+            click.echo(f"  Memory: {device_info.cpu_info.memory_total_gb:.2f} GB")
 
+        # GPU info
         if device_info.gpu_info:
-            click.echo("\nGPU:")
+            click.echo(f"\nGPU:")
             for gpu in device_info.gpu_info:
-                click.echo(f"  [{gpu.gpu_id}] {gpu.gpu_name}")
-                click.echo(f"      Memory: {gpu.gpu_memory_total_mb} MB")
-                click.echo(f"      Compute Capability: {gpu.cuda_compute_capability}")
+                gpu_type_str = f" ({gpu.gpu_type.upper()})" if gpu.gpu_type != "cuda" else ""
+                click.echo(f"  [{gpu.gpu_id}] {gpu.gpu_name}{gpu_type_str}")
+                if gpu.gpu_memory_total_mb > 0:
+                    click.echo(f"      Memory: {gpu.gpu_memory_total_mb} MB")
+                if gpu.cuda_compute_capability != "N/A":
+                    click.echo(f"      Compute Capability: {gpu.cuda_compute_capability}")
+        elif device_info.mps_available:
+            click.echo(f"\nGPU:")
+            click.echo(f"  [0] Apple Silicon GPU (MPS)")
+            click.echo(f"      Memory: Unified Memory")
         else:
-            click.echo("\nGPU: Not available (will use CPU)")
+            click.echo(f"\nGPU: Not available (using CPU)")
+
+        # Available devices
+        available_devices = device_info.get_available_devices()
+        primary_device = device_info.get_device_string()
+        click.echo(f"\nAvailable Devices: {', '.join(available_devices)}")
+        click.echo(f"Primary Device: {primary_device}")
+        click.echo("")
 
 
 @main.command()

@@ -16,14 +16,14 @@ class TimerResult:
 
 
 class Timer:
-    """Precise timer supporting both CPU and CUDA"""
+    """Precise timer supporting CPU, CUDA, and MPS devices"""
 
     def __init__(self, device: str = "cpu"):
         """
         Initialize timer.
 
         Args:
-            device: "cpu" or "cuda"
+            device: "cpu", "cuda", "cuda:0", "mps", etc.
         """
         self.device = device
         self._start_event = None
@@ -42,10 +42,12 @@ class Timer:
     def start(self):
         """Start timing"""
         if self.device.startswith("cuda") and torch.cuda.is_available():
+            # Use CUDA events for precise GPU timing
             self._start_event = torch.cuda.Event(enable_timing=True)
             self._end_event = torch.cuda.Event(enable_timing=True)
             self._start_event.record()
         else:
+            # Use CPU timer for CPU, MPS, and other devices
             self._start_time = time.perf_counter()
 
     def stop(self):
@@ -55,6 +57,9 @@ class Timer:
             torch.cuda.synchronize()
             self._elapsed_ms = self._start_event.elapsed_time(self._end_event)
         else:
+            # MPS uses CPU timer with synchronization
+            if self.device == "mps" and hasattr(torch.mps, 'synchronize'):
+                torch.mps.synchronize()
             self._end_time = time.perf_counter()
             self._elapsed_ms = (self._end_time - self._start_time) * 1000
 

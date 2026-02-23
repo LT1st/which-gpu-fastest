@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "which-gpu-fastest"
-version = "0.1.0"
-description = "A command-line tool for benchmarking PyTorch performance on different hardware (GPU/CPU)"
+version = "0.2.0"
+description = "A cross-platform command-line tool for benchmarking PyTorch performance on different hardware (GPU/CPU)"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "LT1st", email = "lutao@example.com"}
 ]
-keywords = ["pytorch", "gpu", "benchmark", "deep-learning", "performance"]
+keywords = ["pytorch", "gpu", "benchmark", "deep-learning", "performance", "cuda", "rocm", "mps", "apple-silicon"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Environment :: Console",
@@ -22,11 +22,15 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: System :: Benchmark",
 ]
@@ -48,6 +52,9 @@ dev = [
     "black>=23.0",
     "isort>=5.0",
     "flake8>=6.0",
+]
+windows = [
+    "wmi>=1.5.1",
 ]
 
 [project.urls]

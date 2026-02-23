@@ -421,13 +421,21 @@ class GPUBenchmark:
         return metrics
 
     def _get_autocast_context(self):
-        """Get autocast context based on precision"""
+        """Get autocast context based on precision and device"""
         from contextlib import nullcontext
 
+        device_type = self.device.split(":")[0]  # cuda, mps, cpu
+
         if self.config.precision == Precision.FP16:
-            return autocast(device_type=self.device.split(":")[0], dtype=torch.float16)
+            if device_type == "mps":
+                # MPS supports autocast but with some limitations
+                return autocast(device_type="mps", dtype=torch.float16)
+            return autocast(device_type=device_type, dtype=torch.float16)
         elif self.config.precision == Precision.BF16:
-            return autocast(device_type=self.device.split(":")[0], dtype=torch.bfloat16)
+            if device_type == "mps":
+                # MPS doesn't fully support BF16, fallback to FP32
+                return nullcontext()
+            return autocast(device_type=device_type, dtype=torch.bfloat16)
         elif self.config.precision == Precision.TF32:
             # TF32 is enabled by default on Ampere GPUs, no special context needed
             return nullcontext()
@@ -439,20 +447,35 @@ class GPUBenchmark:
         """Get peak memory usage in MB"""
         if self.device.startswith("cuda") and torch.cuda.is_available():
             return torch.cuda.max_memory_allocated() / (1024 * 1024)
+        elif self.device == "mps" and hasattr(torch.mps, 'current_allocated_memory'):
+            try:
+                return torch.mps.current_allocated_memory() / (1024 * 1024)
+            except Exception:
+                pass
         return 0.0
 
     def _get_allocated_memory(self) -> float:
         """Get currently allocated memory in MB"""
         if self.device.startswith("cuda") and torch.cuda.is_available():
             return torch.cuda.memory_allocated() / (1024 * 1024)
+        elif self.device == "mps" and hasattr(torch.mps, 'current_allocated_memory'):
+            try:
+                return torch.mps.current_allocated_memory() / (1024 * 1024)
+            except Exception:
+                pass
         return 0.0
 
     def _clear_memory(self):
-        """Clear GPU memory cache"""
+        """Clear device memory cache"""
         gc.collect()
         if self.device.startswith("cuda") and torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.reset_peak_memory_stats()
+        elif self.device == "mps" and hasattr(torch.mps, 'empty_cache'):
+            try:
+                torch.mps.empty_cache()
+            except Exception:
+                pass
 
     @staticmethod
     def format_time(ms: float) -> str:
